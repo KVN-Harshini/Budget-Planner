@@ -27,10 +27,146 @@ const getCategoryName = (item) => {
     );
 };
 
+const getSalaryRules = (salary) => {
+    if (salary <= 20000) {
+        return { needs: 65, wants: 25, savings: 10 };
+    }
+
+    if (salary <= 50000) {
+        return { needs: 55, wants: 30, savings: 15 };
+    }
+
+    return { needs: 50, wants: 30, savings: 20 };
+};
+
+const getCategoryType = (name) => {
+    const category = name.toLowerCase();
+
+    if (
+        /rent|house|housing|home|accommodation|food|grocery|groceries|bill|utility|utilities|electricity|water|transport|travel|fuel|petrol|bus|vehicle|health|medical|medicine|hospital|education|college|course|study|insurance/.test(category)
+    ) {
+        return "needs";
+    }
+
+    if (
+        /shopping|clothing|fashion|entertainment|movie|game|recreation|restaurant|dining|vacation|holiday|subscription|hobby/.test(category)
+    ) {
+        return "wants";
+    }
+
+    return "wants";
+};
+
+const getCategoryWeight = (name) => {
+    const category = name.toLowerCase();
+
+    if (/rent|house|housing|home|accommodation/.test(category)) return 1.5;
+    if (/food|grocery|groceries/.test(category)) return 1.3;
+    if (/health|medical|medicine|hospital/.test(category)) return 1.2;
+    if (/bill|utility|utilities|electricity|water/.test(category)) return 1.1;
+    if (/transport|travel|fuel|petrol|bus|vehicle/.test(category)) return 1.0;
+    if (/education|college|course|study/.test(category)) return 0.9;
+    if (/insurance/.test(category)) return 1.1;
+    if (/shopping|clothing|fashion/.test(category)) return 0.8;
+    if (/entertainment|movie|game|recreation/.test(category)) return 0.6;
+    if (/restaurant|dining|vacation|holiday/.test(category)) return 0.5;
+
+    return 0.7;
+};
+
+// Calculate recommendations using salary range and category types.
+const getDefaultAllocations = (names, salary, categoryBudgetPool) => {
+    const result = {};
+
+    names.forEach((name) => {
+        result[name] = 0;
+    });
+
+    if (!names.length || salary <= 0 || categoryBudgetPool <= 0) {
+        return result;
+    }
+
+    const rules = getSalaryRules(salary);
+    const totalPlanningPercentage = rules.needs + rules.wants;
+
+    const needsPool =
+        categoryBudgetPool * rules.needs / totalPlanningPercentage;
+
+    const wantsPool =
+        categoryBudgetPool * rules.wants / totalPlanningPercentage;
+
+    const needsCategories = names.filter(
+        (name) => getCategoryType(name) === "needs"
+    );
+
+    const wantsCategories = names.filter(
+        (name) => getCategoryType(name) === "wants"
+    );
+
+    const distribute = (categoryNames, availableAmount) => {
+        if (!categoryNames.length) return;
+
+        const totalWeight = categoryNames.reduce(
+            (sum, name) => sum + getCategoryWeight(name),
+            0
+        );
+
+        categoryNames.forEach((name) => {
+            const categoryAmount =
+                availableAmount *
+                getCategoryWeight(name) /
+                totalWeight;
+
+            result[name] = Number(
+                (categoryAmount / categoryBudgetPool * 100).toFixed(2)
+            );
+        });
+    };
+
+    distribute(needsCategories, needsPool);
+    distribute(wantsCategories, wantsPool);
+
+    return result;
+};
+
+const getSavedAllocations = (names, saved) => {
+    const result = {};
+    let remaining = 100;
+
+    names.forEach((name) => {
+        const requested = Math.max(0, Number(saved?.[name]) || 0);
+        const allowed = Math.min(requested, remaining);
+
+        result[name] = Number(allowed.toFixed(2));
+        remaining -= allowed;
+    });
+
+    return result;
+};
+
+// Check whether a saved plan has actual category allocations.
+const hasPositiveAllocation = (allocations = {}) => {
+    return Object.values(allocations).some(
+        (value) => Number(value) > 0
+    );
+};
+
 function BudgetSavings() {
     const savedPlan = readStorage("budgetMonthlyPlan", {});
     const savedGoals = readStorage("budgetSavingsGoals", []);
     const savedCategories = readStorage("budgetCategories", []);
+
+    const initialCategories = [
+        ...new Set(
+            savedCategories.map(getCategoryName).filter(Boolean)
+        )
+    ];
+
+    // A previously generated plan containing only zero allocations
+    // should NOT be treated as a customized plan.
+    const hasValidSavedAllocations =
+        Boolean(savedPlan.generated) &&
+        hasPositiveAllocation(savedPlan.allocations);
 
     const [income, setIncome] = useState(
         savedPlan.income ? String(savedPlan.income) : ""
@@ -40,19 +176,8 @@ function BudgetSavings() {
         savedPlan.hasGoals ?? savedGoals.length > 0
     );
 
-    const [categories, setCategories] = useState(() => {
-        const names = savedCategories
-            .map(getCategoryName)
-            .filter(Boolean);
+    const [categories, setCategories] = useState(initialCategories);
 
-        return [...new Set(names)];
-    });
-
-    const [allocations, setAllocations] = useState(
-        savedPlan.allocations || {}
-    );
-
-    // Support previously saved goals
     const [goals, setGoals] = useState(() =>
         savedGoals.map((goal) => ({
             ...goal,
@@ -60,72 +185,33 @@ function BudgetSavings() {
         }))
     );
 
+    const [allocations, setAllocations] = useState(() => {
+        if (hasValidSavedAllocations) {
+            return getSavedAllocations(
+                initialCategories,
+                savedPlan.allocations || {}
+            );
+        }
+
+        return {};
+    });
+
+    const [allocationsCustomized, setAllocationsCustomized] = useState(
+        hasValidSavedAllocations
+    );
+
     const [goalName, setGoalName] = useState("");
     const [goalAmount, setGoalAmount] = useState("");
     const [goalMonthlySaving, setGoalMonthlySaving] = useState("");
 
     const [planGenerated, setPlanGenerated] = useState(
-        Boolean(savedPlan.generated)
+        hasValidSavedAllocations
     );
 
     const [message, setMessage] = useState("");
 
-    // Update categories when Expense Categories changes
-    useEffect(() => {
-        const updateCategories = () => {
-            const stored = readStorage("budgetCategories", []);
-
-            const names = [
-                ...new Set(
-                    stored.map(getCategoryName).filter(Boolean)
-                )
-            ];
-
-            setCategories(names);
-
-            setAllocations((previous) => {
-                const updated = { ...previous };
-
-                names.forEach((name) => {
-                    if (updated[name] === undefined) {
-                        updated[name] = 0;
-                    }
-                });
-
-                Object.keys(updated).forEach((name) => {
-                    if (!names.includes(name)) {
-                        delete updated[name];
-                    }
-                });
-
-                return updated;
-            });
-        };
-
-        window.addEventListener(
-            "budgetCategoriesUpdated",
-            updateCategories
-        );
-
-        return () => {
-            window.removeEventListener(
-                "budgetCategoriesUpdated",
-                updateCategories
-            );
-        };
-    }, []);
-
-    // Save purchase goals
-    useEffect(() => {
-        localStorage.setItem(
-            "budgetSavingsGoals",
-            JSON.stringify(goals)
-        );
-    }, [goals]);
-
     const salary = Number(income) || 0;
 
-    // Calculate estimated completion months for every goal
     const goalDetails = useMemo(() => {
         return goals.map((goal) => {
             const target = Number(goal.targetAmount || 0);
@@ -144,34 +230,122 @@ function BudgetSavings() {
         });
     }, [goals]);
 
-    // Total monthly savings for all goals
     const totalGoalSavings = goalDetails.reduce(
         (sum, goal) => sum + goal.monthlySaving,
         0
     );
 
-    // Remaining salary after goal savings
     const availableAfterGoals = Math.max(
         0,
         salary - (hasGoals ? totalGoalSavings : 0)
     );
 
-    // Without goals, reserve 20% for general savings
-    const generalSavings = hasGoals ? 0 : salary * 0.2;
+    const rules = getSalaryRules(salary);
+
+    const generalSavings = hasGoals
+        ? 0
+        : salary * rules.savings / 100;
 
     const categoryBudgetPool = hasGoals
         ? availableAfterGoals
-        : salary * 0.8;
+        : salary - generalSavings;
 
-    // Category allocation calculations
-    const categoryPercentageTotal = categories.reduce(
-        (sum, category) =>
-            sum + Number(allocations[category] || 0),
-        0
+    // Automatically calculate recommendations until the user
+    // manually customizes their allocations.
+    useEffect(() => {
+        if (allocationsCustomized) return;
+
+        setAllocations(
+            getDefaultAllocations(
+                categories,
+                salary,
+                categoryBudgetPool
+            )
+        );
+    }, [
+        salary,
+        categoryBudgetPool,
+        categories,
+        allocationsCustomized
+    ]);
+
+    // Listen for category changes from Expense Categories.
+    useEffect(() => {
+        const updateCategories = () => {
+            const stored = readStorage("budgetCategories", []);
+
+            const names = [
+                ...new Set(
+                    stored.map(getCategoryName).filter(Boolean)
+                )
+            ];
+
+            setCategories(names);
+
+            setAllocations((previous) => {
+                if (!allocationsCustomized) {
+                    return getDefaultAllocations(
+                        names,
+                        salary,
+                        categoryBudgetPool
+                    );
+                }
+
+                const updated = {};
+
+                names.forEach((name) => {
+                    updated[name] =
+                        previous[name] !== undefined
+                            ? previous[name]
+                            : 0;
+                });
+
+                return getSavedAllocations(names, updated);
+            });
+
+            setPlanGenerated(false);
+        };
+
+        window.addEventListener(
+            "budgetCategoriesUpdated",
+            updateCategories
+        );
+
+        return () => {
+            window.removeEventListener(
+                "budgetCategoriesUpdated",
+                updateCategories
+            );
+        };
+    }, [
+        allocationsCustomized,
+        salary,
+        categoryBudgetPool
+    ]);
+
+    // Save purchase goals.
+    useEffect(() => {
+        localStorage.setItem(
+            "budgetSavingsGoals",
+            JSON.stringify(goals)
+        );
+    }, [goals]);
+
+    const categoryPercentageTotal = Number(
+        categories.reduce(
+            (sum, category) =>
+                sum + Number(allocations[category] || 0),
+            0
+        ).toFixed(2)
     );
 
     const categoryBudgetTotal =
         categoryBudgetPool * categoryPercentageTotal / 100;
+
+    const unallocatedPercentage = Math.max(
+        0,
+        Number((100 - categoryPercentageTotal).toFixed(2))
+    );
 
     const unallocatedAmount = Math.max(
         0,
@@ -184,11 +358,11 @@ function BudgetSavings() {
         return {
             name: category,
             percentage,
-            amount: categoryBudgetPool * percentage / 100
+            amount: categoryBudgetPool * percentage / 100,
+            type: getCategoryType(category)
         };
     });
 
-    // Add a purchase goal
     function addGoal(event) {
         event.preventDefault();
 
@@ -223,7 +397,6 @@ function BudgetSavings() {
         setPlanGenerated(false);
     }
 
-    // Edit monthly saving amount for an individual goal
     function updateGoalSaving(id, value) {
         const amount = Math.max(0, Number(value) || 0);
 
@@ -238,7 +411,6 @@ function BudgetSavings() {
         setPlanGenerated(false);
     }
 
-    // Delete a purchase goal
     function deleteGoal(id) {
         setGoals((previous) =>
             previous.filter((goal) => goal.id !== id)
@@ -247,25 +419,54 @@ function BudgetSavings() {
         setPlanGenerated(false);
     }
 
-    // Update category allocation
+    // Edit only the selected category.
     function updateAllocation(category, value) {
-        const percentage = Math.max(
-            0,
-            Math.min(100, Number(value) || 0)
+        const otherTotal = categories.reduce(
+            (sum, name) =>
+                name === category
+                    ? sum
+                    : sum + Number(allocations[name] || 0),
+            0
         );
+
+        const maximumAllowed = Math.max(0, 100 - otherTotal);
+
+        const requested = value === ""
+            ? 0
+            : Number(value);
+
+        if (!Number.isFinite(requested) || requested < 0) {
+            setMessage("Please enter a valid percentage.");
+            return;
+        }
+
+        if (requested > maximumAllowed) {
+            setMessage(
+                `Maximum allocation for ${category} is ${maximumAllowed.toFixed(2)}%.`
+            );
+            return;
+        }
 
         setAllocations((previous) => ({
             ...previous,
-            [category]: percentage
+            [category]: Number(requested.toFixed(2))
         }));
 
+        setAllocationsCustomized(true);
+        setMessage("");
         setPlanGenerated(false);
     }
 
-    // Generate the budget
     function generatePlan() {
         if (salary <= 0) {
             setMessage("Please enter your monthly salary.");
+            return;
+        }
+
+        if (categories.length === 0) {
+            setMessage(
+                "Please add expense categories before generating your budget."
+            );
             return;
         }
 
@@ -274,9 +475,10 @@ function BudgetSavings() {
             return;
         }
 
-        if (hasGoals && goalDetails.some(
-            (goal) => goal.monthlySaving <= 0
-        )) {
+        if (
+            hasGoals &&
+            goalDetails.some((goal) => goal.monthlySaving <= 0)
+        ) {
             setMessage(
                 "Enter a monthly saving amount for every purchase goal."
             );
@@ -290,9 +492,40 @@ function BudgetSavings() {
             return;
         }
 
-        if (categoryPercentageTotal > 100) {
+        // IMPORTANT FIX:
+        // If the plan has no allocations and the user has not
+        // customized them, calculate recommendations now.
+        const currentTotal = categories.reduce(
+            (sum, name) =>
+                sum + Number(allocations[name] || 0),
+            0
+        );
+
+        const finalAllocations =
+            currentTotal === 0 && !allocationsCustomized
+                ? getDefaultAllocations(
+                    categories,
+                    salary,
+                    categoryBudgetPool
+                )
+                : { ...allocations };
+
+        const percentageTotal = categories.reduce(
+            (sum, name) =>
+                sum + Number(finalAllocations[name] || 0),
+            0
+        );
+
+        if (percentageTotal > 100.001) {
             setMessage(
-                "Category allocation percentage cannot exceed 100%."
+                "Category allocation cannot exceed 100%. Please adjust it."
+            );
+            return;
+        }
+
+        if (percentageTotal === 0 && categoryBudgetPool > 0) {
+            setMessage(
+                "Unable to calculate category recommendations. Please check your categories."
             );
             return;
         }
@@ -300,10 +533,14 @@ function BudgetSavings() {
         const plan = {
             income: salary,
             hasGoals,
-            allocations,
+            allocations: finalAllocations,
             generated: true,
             generatedAt: new Date().toISOString()
         };
+
+        // Update the UI and Local Storage with the calculated values.
+        setAllocations(finalAllocations);
+        setAllocationsCustomized(true);
 
         localStorage.setItem(
             "budgetMonthlyPlan",
@@ -328,8 +565,12 @@ function BudgetSavings() {
         <div className="budget-planner">
 
             <div className="budget-header">
-                <p className="budget-label">SMART FINANCIAL PLANNING</p>
+                <p className="budget-label">
+                    SMART FINANCIAL PLANNING
+                </p>
+
                 <h1>Smart Budget & Savings Planner</h1>
+
                 <p>
                     Plan your monthly expenses and achieve your
                     purchase goals with a personalized budget.
@@ -340,14 +581,18 @@ function BudgetSavings() {
             <section className="budget-card">
                 <div className="step-heading">
                     <span className="step-number">1</span>
+
                     <div>
                         <h2>Enter Your Monthly Salary</h2>
-                        <p>Enter your monthly income to start planning.</p>
+                        <p>
+                            Enter your monthly income to start planning.
+                        </p>
                     </div>
                 </div>
 
                 <div className="salary-input">
                     <label>Monthly Salary (₹)</label>
+
                     <input
                         type="number"
                         min="1"
@@ -359,14 +604,23 @@ function BudgetSavings() {
                         }}
                     />
                 </div>
+
+                {salary > 0 && (
+                    <p className="budget-success">
+                        Your recommended savings rate is {rules.savings}%
+                        based on your salary range.
+                    </p>
+                )}
             </section>
 
             {/* STEP 2: PURCHASE GOALS */}
             <section className="budget-card">
                 <div className="step-heading">
                     <span className="step-number">2</span>
+
                     <div>
                         <h2>Do You Have Any Purchase Goals?</h2>
+
                         <p>
                             Tell us what you want to purchase.
                             You can add multiple goals.
@@ -378,7 +632,9 @@ function BudgetSavings() {
                     <button
                         type="button"
                         className={
-                            hasGoals ? "choice-button selected" : "choice-button"
+                            hasGoals
+                                ? "choice-button selected"
+                                : "choice-button"
                         }
                         onClick={() => changeGoalChoice(true)}
                     >
@@ -388,7 +644,9 @@ function BudgetSavings() {
                     <button
                         type="button"
                         className={
-                            !hasGoals ? "choice-button selected" : "choice-button"
+                            !hasGoals
+                                ? "choice-button selected"
+                                : "choice-button"
                         }
                         onClick={() => changeGoalChoice(false)}
                     >
@@ -399,10 +657,11 @@ function BudgetSavings() {
                 {!hasGoals && (
                     <div className="normal-plan-message">
                         <h3>Normal Budget Planning</h3>
+
                         <p>
-                            No purchase goals selected. Your expense
-                            categories will be planned using 80% of
-                            your salary, with 20% reserved for general savings.
+                            Your savings amount is calculated according
+                            to your salary range. The remaining amount
+                            is available for expense categories.
                         </p>
                     </div>
                 )}
@@ -415,6 +674,7 @@ function BudgetSavings() {
                             <div className="goal-form-grid">
                                 <div>
                                     <label>Purchase Name</label>
+
                                     <input
                                         type="text"
                                         placeholder="Example: Laptop"
@@ -427,6 +687,7 @@ function BudgetSavings() {
 
                                 <div>
                                     <label>Purchase Amount (₹)</label>
+
                                     <input
                                         type="number"
                                         min="1"
@@ -439,7 +700,10 @@ function BudgetSavings() {
                                 </div>
 
                                 <div>
-                                    <label>How Much Can You Save Monthly? (₹)</label>
+                                    <label>
+                                        How Much Can You Save Monthly? (₹)
+                                    </label>
+
                                     <input
                                         type="number"
                                         min="1"
@@ -452,7 +716,10 @@ function BudgetSavings() {
                                 </div>
                             </div>
 
-                            <button type="submit" className="secondary-button">
+                            <button
+                                type="submit"
+                                className="secondary-button"
+                            >
                                 + Add Goal
                             </button>
                         </form>
@@ -462,12 +729,16 @@ function BudgetSavings() {
                                 <h3>Your Purchase Goals</h3>
 
                                 {goalDetails.map((goal) => (
-                                    <div className="goal-item" key={goal.id}>
+                                    <div
+                                        className="goal-item"
+                                        key={goal.id}
+                                    >
                                         <div className="goal-item-details">
                                             <strong>{goal.name}</strong>
 
                                             <p>
-                                                Purchase amount: ₹{money(goal.target)}
+                                                Purchase amount: ₹
+                                                {money(goal.target)}
                                             </p>
 
                                             <label>
@@ -491,7 +762,9 @@ function BudgetSavings() {
                                                     You can purchase this in
                                                     approximately {goal.months}
                                                     {" "}
-                                                    {goal.months === 1 ? "month" : "months"}.
+                                                    {goal.months === 1
+                                                        ? "month"
+                                                        : "months"}.
                                                 </p>
                                             ) : (
                                                 <p className="budget-warning">
@@ -520,11 +793,14 @@ function BudgetSavings() {
             <section className="budget-card">
                 <div className="step-heading">
                     <span className="step-number">3</span>
+
                     <div>
                         <h2>Plan Your Expense Categories</h2>
+
                         <p>
-                            Your remaining salary will be allocated
-                            across your existing expense categories.
+                            Recommendations are calculated from your salary
+                            and the types of categories you have added.
+                            You can edit any suggested allocation.
                         </p>
                     </div>
                 </div>
@@ -542,49 +818,70 @@ function BudgetSavings() {
                             <span>Monthly Budget</span>
                         </div>
 
-                        {categoryRows.map((item) => (
-                            <div className="allocation-row" key={item.name}>
-                                <strong>{item.name}</strong>
+                        {categoryRows.map((item) => {
+                            const otherTotal =
+                                categoryPercentageTotal - item.percentage;
 
-                                <div className="allocation-controls">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={item.percentage}
-                                        onChange={(event) =>
-                                            updateAllocation(
-                                                item.name,
-                                                event.target.value
-                                            )
-                                        }
-                                    />
-                                    <span>%</span>
+                            const maxAllowed = Math.max(
+                                0,
+                                100 - otherTotal
+                            );
+
+                            return (
+                                <div
+                                    className="allocation-row"
+                                    key={item.name}
+                                >
+                                    <div>
+                                        <strong>{item.name}</strong>
+                                        <p className="category-type-label">
+                                            {item.type === "needs"
+                                                ? "Essential expense"
+                                                : "Flexible expense"}
+                                        </p>
+                                    </div>
+
+                                    <div className="allocation-controls">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max={maxAllowed}
+                                            step="0.01"
+                                            value={item.percentage}
+                                            onChange={(event) =>
+                                                updateAllocation(
+                                                    item.name,
+                                                    event.target.value
+                                                )
+                                            }
+                                        />
+
+                                        <span>%</span>
+                                    </div>
+
+                                    <strong>
+                                        ₹{money(item.amount)}
+                                    </strong>
                                 </div>
-
-                                <strong>₹{money(item.amount)}</strong>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         <div className="allocation-total">
                             <span>
                                 Total category allocation:
                                 {" "}{categoryPercentageTotal}%
                             </span>
-                            <strong>₹{money(categoryBudgetTotal)}</strong>
+
+                            <strong>
+                                ₹{money(categoryBudgetTotal)}
+                            </strong>
                         </div>
 
                         <div className="unallocated-info">
-                            Remaining unallocated amount:
-                            {" "}₹{money(unallocatedAmount)}
+                            Unallocated percentage: {unallocatedPercentage}%
+                            <br />
+                            Unallocated amount: ₹{money(unallocatedAmount)}
                         </div>
-
-                        {categoryPercentageTotal > 100 && (
-                            <p className="budget-warning">
-                                Category allocation exceeds 100%.
-                                Please adjust the percentages.
-                            </p>
-                        )}
                     </>
                 ) : (
                     <div className="empty-goals">
@@ -598,9 +895,12 @@ function BudgetSavings() {
             <section className="budget-card">
                 <div className="step-heading">
                     <span className="step-number">4</span>
+
                     <div>
                         <h2>Your Budget Summary</h2>
-                        <p>Review your monthly financial plan.</p>
+                        <p>
+                            Review your monthly financial plan.
+                        </p>
                     </div>
                 </div>
 
@@ -612,6 +912,7 @@ function BudgetSavings() {
 
                     <div className="summary-card">
                         <span>Monthly Goal Savings</span>
+
                         <strong>
                             ₹{money(hasGoals ? totalGoalSavings : 0)}
                         </strong>
@@ -634,7 +935,8 @@ function BudgetSavings() {
 
                         {totalGoalSavings > salary ? (
                             <p className="budget-warning">
-                                Your goals require ₹{money(totalGoalSavings)}
+                                Your goals require ₹
+                                {money(totalGoalSavings)}
                                 {" "}per month, which is more than your salary.
                                 Reduce the monthly savings amounts to create
                                 a feasible budget.
@@ -642,7 +944,8 @@ function BudgetSavings() {
                         ) : (
                             <p className="budget-success">
                                 Your selected monthly savings fit within
-                                your salary. ₹{money(availableAfterGoals)}
+                                your salary. ₹
+                                {money(availableAfterGoals)}
                                 {" "}is available for expense categories.
                             </p>
                         )}
@@ -651,6 +954,7 @@ function BudgetSavings() {
                             {goalDetails.map((goal) => (
                                 <div key={goal.id}>
                                     <span>{goal.name}</span>
+
                                     <strong>
                                         {goal.months === null
                                             ? "Not calculated"
@@ -671,7 +975,9 @@ function BudgetSavings() {
                 </button>
 
                 {message && (
-                    <p className="budget-message">{message}</p>
+                    <p className="budget-message">
+                        {message}
+                    </p>
                 )}
 
                 {planGenerated && (
@@ -682,8 +988,9 @@ function BudgetSavings() {
             </section>
 
             <p className="budget-disclaimer">
-                Note: Completion time is an estimate based on the monthly
-                saving amount entered by you. This planner does not
+                Note: Budget recommendations are estimates based on
+                salary ranges and expense category types. Users can
+                customize their allocations. This planner does not
                 automatically transfer money or record bank transactions.
             </p>
 
