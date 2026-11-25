@@ -11,6 +11,7 @@ import ExpenseCategories from "../modules/ExpenseCategories.jsx";
 import TransactionHistory from "../modules/TransactionHistory.jsx";
 import BudgetSavings from "../modules/BudgetSavings.jsx";
 import OverspendingAlerts from "../modules/OverspendingAlerts.jsx";
+import FinancialNews from "../modules/FinancialNews.jsx";
 import Analytics from "../modules/Analytics.jsx";
 import Profile from "../modules/Profile.jsx";
 
@@ -532,6 +533,11 @@ function Dashboard() {
 
         if (activePage === "Overspending Alerts") {
             return <OverspendingAlerts />;
+        }
+
+        // FINANCIAL NEWS AND MARKET UPDATES
+        if (activePage === "Financial News & Market Updates") {
+            return <FinancialNews />;
         }
 
         // ANALYTICS AND REPORTING

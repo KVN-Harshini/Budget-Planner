@@ -1,0 +1,686 @@
+
+/* ==========================================
+   FINANCIAL NEWS - PREMIUM DARK THEME
+========================================== */
+
+.financial-news-page {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 24px 26px 35px;
+    color: #f4f8fa;
+    box-sizing: border-box;
+    animation: financialFade 0.4s ease;
+}
+
+@keyframes financialFade {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   MAIN HEADER
+========================================== */
+
+.market-heading {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    min-height: 145px;
+    padding: 30px 34px;
+    border-radius: 17px;
+    background: linear-gradient(115deg, #102c40, #12504f, #137b68);
+    border: 1px solid #286e64;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+}
+
+.market-heading::after {
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    right: -45px;
+    top: -115px;
+    border: 30px solid rgba(255, 255, 255, 0.055);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.market-heading h1 {
+    position: relative;
+    z-index: 1;
+    color: #ffffff !important;
+    font-size: 29px;
+    line-height: 1.4;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin: 0 0 11px;
+}
+
+.market-heading p {
+    position: relative;
+    z-index: 1;
+    color: #c6e2dc !important;
+    font-size: 15px;
+    line-height: 1.7;
+    margin: 0;
+}
+
+.market-status {
+    position: relative;
+    z-index: 2;
+    padding: 11px 17px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #e5fff5;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* ==========================================
+   CITY SELECTOR
+========================================== */
+
+.city-selector {
+    width: 100%;
+    min-height: 94px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 19px 24px;
+    border-radius: 15px;
+    background: linear-gradient(110deg, #122f3b, #103b3c);
+    border: 1px solid #32645e;
+    box-shadow: 0 5px 17px rgba(0, 0, 0, 0.15);
+    box-sizing: border-box;
+}
+
+.city-selector-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.city-location-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    background: rgba(29, 164, 122, 0.17);
+    border: 1px solid rgba(68, 193, 151, 0.28);
+    font-size: 23px;
+}
+
+.city-selector-info h3 {
+    color: #ffffff !important;
+    font-size: 17px;
+    font-weight: 750;
+    margin: 0 0 6px;
+}
+
+.city-selector-info p {
+    color: #a9c3c7 !important;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.city-selector select {
+    position: relative;
+    z-index: 5;
+    display: block;
+    min-width: 235px;
+    min-height: 48px;
+    padding: 11px 38px 11px 15px;
+    border: 1px solid #438c78;
+    border-radius: 10px;
+    background-color: #071d25;
+    color: #f4fffb;
+    font-size: 15px;
+    font-weight: 650;
+    cursor: pointer;
+    outline: none;
+    pointer-events: auto;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.city-selector select:hover {
+    border-color: #4bc9a0;
+}
+
+.city-selector select:focus {
+    border-color: #48d3a4;
+    box-shadow: 0 0 0 3px rgba(29, 164, 122, 0.18);
+}
+
+.city-selector select option {
+    background: #102c37;
+    color: #ffffff;
+    padding: 10px;
+}
+
+/* ==========================================
+   SECTION HEADINGS
+========================================== */
+
+.market-section {
+    display: flex;
+    flex-direction: column;
+    gap: 17px;
+    width: 100%;
+    min-width: 0;
+}
+
+.market-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-left: 15px;
+    border-left: 4px solid #26b58a;
+    min-height: 51px;
+}
+
+.market-section-heading h2 {
+    color: #f4f9fb !important;
+    font-size: 22px;
+    line-height: 1.4;
+    font-weight: 780;
+    letter-spacing: -0.3px;
+    margin: 0 0 6px;
+}
+
+.market-section-heading p {
+    color: #b2c7cf !important;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ==========================================
+   MARKET OVERVIEW CARDS
+========================================== */
+
+.market-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+}
+
+.market-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-width: 0;
+    min-height: 155px;
+    padding: 21px 22px;
+    overflow: hidden;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #142f3c, #0d2530);
+    border: 1px solid #31525d;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.17);
+    box-sizing: border-box;
+    transition: transform 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease;
+}
+
+.market-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #1da47a, #79e2b9);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.market-card:hover {
+    transform: translateY(-3px);
+    border-color: #3bb58f;
+    box-shadow: 0 9px 22px rgba(0, 0, 0, 0.25);
+}
+
+.market-card:hover::before {
+    opacity: 1;
+}
+
+.market-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    color: #d0e0e4;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.market-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 11px;
+    background: rgba(29, 164, 122, 0.15);
+    border: 1px solid rgba(65, 191, 148, 0.25);
+    font-size: 21px;
+}
+
+.market-card h2 {
+    color: #ffffff !important;
+    font-size: 26px;
+    line-height: 1.4;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    margin: 16px 0 7px;
+    overflow-wrap: anywhere;
+}
+
+.market-card p {
+    color: #b0c3cb !important;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ==========================================
+   NEWS CATEGORIES
+========================================== */
+
+.news-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.news-categories button {
+    padding: 10px 16px;
+    border: 1px solid #35535d;
+    border-radius: 25px;
+    background: #102c37;
+    color: #d5e4e7;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.news-categories button:hover {
+    background: #16483f;
+    border-color: #35b88c;
+    color: #9af0cb;
+    transform: translateY(-2px);
+}
+
+/* ==========================================
+   NEWS EMPTY STATE
+========================================== */
+
+.news-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 205px;
+    padding: 29px 22px;
+    border-radius: 15px;
+    border: 1px dashed #41636b;
+    background: linear-gradient(135deg, #122f3a, #0d252e);
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.news-empty-icon {
+    width: 57px;
+    height: 57px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 15px;
+    background: rgba(29, 164, 122, 0.16);
+    border: 1px solid rgba(29, 164, 122, 0.28);
+    font-size: 27px;
+    margin-bottom: 14px;
+}
+
+.news-empty-state h3 {
+    color: #f4f9fb !important;
+    font-size: 19px;
+    font-weight: 750;
+    margin: 0 0 9px;
+}
+
+.news-empty-state p {
+    max-width: 500px;
+    color: #b4c7ce !important;
+    font-size: 14px;
+    line-height: 1.8;
+    margin: 0;
+}
+
+/* ==========================================
+   FUEL PRICE CARDS
+========================================== */
+
+.fuel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+}
+
+.fuel-card {
+    position: relative;
+    min-width: 0;
+    min-height: 165px;
+    padding: 22px 24px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #142f3c, #0d2530);
+    border: 1px solid #31525d;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.17);
+    box-sizing: border-box;
+    transition: all 0.25s ease;
+}
+
+.fuel-card:hover {
+    transform: translateY(-3px);
+    border-color: #3bb58f;
+    box-shadow: 0 9px 22px rgba(0, 0, 0, 0.23);
+}
+
+.fuel-card > span {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 43px;
+    height: 43px;
+    border-radius: 11px;
+    background: rgba(218, 166, 74, 0.13);
+    border: 1px solid rgba(218, 166, 74, 0.25);
+    font-size: 23px;
+    margin-bottom: 14px;
+}
+
+.fuel-card h3 {
+    color: #c5d8dd !important;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+
+.fuel-card h2 {
+    color: #ffffff !important;
+    font-size: 27px;
+    line-height: 1.4;
+    font-weight: 800;
+    margin: 0 0 7px;
+}
+
+.fuel-card p {
+    color: #b0c3cb !important;
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ==========================================
+   FUEL STATUS / ERROR
+========================================== */
+
+.fuel-message {
+    width: 100%;
+    padding: 27px 21px;
+    border: 1px solid #31545e;
+    border-radius: 13px;
+    background: #102c37;
+    color: #d3e8e5;
+    font-size: 15px;
+    line-height: 1.8;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.fuel-error {
+    color: #ffc0b6;
+    border-color: #75443f;
+    background: #301f23;
+}
+
+.fuel-updated {
+    color: #b0c3cb;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ==========================================
+   DISCLAIMER
+========================================== */
+
+.market-disclaimer {
+    padding: 16px 19px;
+    border-radius: 10px;
+    background: #102b34;
+    border: 1px solid #31515a;
+    border-left: 4px solid #1da47a;
+    color: #c0d0d5 !important;
+    font-size: 13px;
+    line-height: 1.8;
+    margin: 0;
+}
+
+/* ==========================================
+   TABLET RESPONSIVE
+========================================== */
+
+@media (max-width: 1000px) {
+    .financial-news-page {
+        padding: 20px 18px 30px;
+    }
+
+    .market-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .market-heading {
+        padding: 26px;
+    }
+
+    .market-heading h1 {
+        font-size: 26px;
+    }
+}
+
+/* ==========================================
+   MOBILE RESPONSIVE
+========================================== */
+
+@media (max-width: 600px) {
+    .financial-news-page {
+        gap: 23px;
+        padding: 14px 12px 25px;
+    }
+
+    .market-heading {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 22px 19px;
+        min-height: auto;
+        border-radius: 15px;
+    }
+
+    .market-heading h1 {
+        font-size: 23px;
+        line-height: 1.4;
+    }
+
+    .market-heading p {
+        font-size: 14px;
+    }
+
+    .market-status {
+        font-size: 12px;
+        padding: 9px 14px;
+    }
+
+    .city-selector {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        padding: 18px;
+    }
+
+    .city-selector-info h3 {
+        font-size: 16px;
+    }
+
+    .city-selector-info p {
+        font-size: 13px;
+    }
+
+    .city-selector select {
+        width: 100%;
+        min-width: 0;
+        font-size: 14px;
+    }
+
+    .market-section-heading h2 {
+        font-size: 20px;
+    }
+
+    .market-section-heading p {
+        font-size: 13px;
+    }
+
+    .market-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .market-card {
+        min-height: 140px;
+        padding: 15px;
+    }
+
+    .market-card-top {
+        font-size: 13px;
+    }
+
+    .market-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 18px;
+    }
+
+    .market-card h2 {
+        font-size: 21px;
+        margin-top: 13px;
+    }
+
+    .market-card p {
+        font-size: 11px;
+    }
+
+    .news-categories {
+        gap: 8px;
+    }
+
+    .news-categories button {
+        padding: 9px 13px;
+        font-size: 12px;
+    }
+
+    .news-empty-state {
+        min-height: 180px;
+        padding: 22px 15px;
+    }
+
+    .news-empty-state h3 {
+        font-size: 17px;
+    }
+
+    .news-empty-state p {
+        font-size: 13px;
+    }
+
+    .fuel-grid {
+        gap: 12px;
+    }
+
+    .fuel-card {
+        min-height: 145px;
+        padding: 16px;
+    }
+
+    .fuel-card h2 {
+        font-size: 22px;
+    }
+
+    .fuel-card h3 {
+        font-size: 14px;
+    }
+
+    .fuel-message {
+        font-size: 13px;
+    }
+
+    .market-disclaimer {
+        font-size: 12px;
+    }
+}
+
+/* ==========================================
+   SMALL MOBILE
+========================================== */
+
+@media (max-width: 360px) {
+    .market-grid,
+    .fuel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .financial-news-page {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+
+
+.gold-rate-link {
+    display: inline-block;
+    color: #6ee7c8;
+    font-size: 17px;
+    font-weight: 700;
+    text-decoration: none;
+    margin: 12px 0 8px;
+    transition: 0.2s ease;
+}
+
+.gold-rate-link:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}

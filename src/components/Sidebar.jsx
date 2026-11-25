@@ -77,6 +77,7 @@ function Sidebar({ onNavigate, onLogout, mobileOpen, closeMobile }) {
 
                         {expandedSections.financial && (
                             <div className="sidebar-submenu">
+
                                 <button
                                     className="sidebar-subitem"
                                     onClick={() => handlePageClick("Income Management")}
@@ -104,6 +105,7 @@ function Sidebar({ onNavigate, onLogout, mobileOpen, closeMobile }) {
                                 >
                                     Transaction History
                                 </button>
+
                             </div>
                         )}
                     </div>
@@ -123,6 +125,7 @@ function Sidebar({ onNavigate, onLogout, mobileOpen, closeMobile }) {
 
                         {expandedSections.budget && (
                             <div className="sidebar-submenu">
+
                                 <button
                                     className="sidebar-subitem"
                                     onClick={() => handlePageClick("Smart Budget & Savings")}
@@ -136,9 +139,18 @@ function Sidebar({ onNavigate, onLogout, mobileOpen, closeMobile }) {
                                 >
                                     Overspending Alerts
                                 </button>
+
                             </div>
                         )}
                     </div>
+
+                    {/* FINANCIAL NEWS AND MARKET UPDATES */}
+                    <button
+                        className="sidebar-item"
+                        onClick={() => handlePageClick("Financial News & Market Updates")}
+                    >
+                        Financial News & Market Updates
+                    </button>
 
                     {/* ANALYTICS AND REPORTING */}
                     <button
