@@ -12,9 +12,9 @@ const CITIES = [
 const API = "https://snapdata.dev/api/v1";
 
 const INITIAL_MARKETS = [
-    { title: "24K Gold", value: "Loading...", unit: "₹ / gram · National benchmark", icon: "🥇" },
-    { title: "22K Gold", value: "Loading...", unit: "₹ / gram · National benchmark", icon: "💛" },
-    { title: "18K Gold", value: "Loading...", unit: "₹ / gram · National benchmark", icon: "✨" },
+    { title: "24K Gold", value: "Loading...", unit: "₹ / gram · GST included", icon: "🥇" },
+    { title: "22K Gold", value: "Loading...", unit: "₹ / gram · GST included", icon: "💛" },
+    { title: "18K Gold", value: "Loading...", unit: "₹ / gram · GST included", icon: "✨" },
     { title: "Silver", value: "Loading...", unit: "₹ / gram · National benchmark", icon: "🥈" },
     { title: "USD / INR", value: "Loading...", unit: "ECB reference rate", icon: "💱" }
 ];
@@ -75,6 +75,7 @@ function FinancialNews() {
     const [loading, setLoading] = useState(true);
     const [marketError, setMarketError] = useState("");
     const [lastUpdated, setLastUpdated] = useState("");
+    const [goldCity, setGoldCity] = useState("");
 
     useEffect(() => {
         setUserData("budgetSelectedCity", city);
@@ -86,13 +87,15 @@ function FinancialNews() {
         async function loadMarkets() {
             setLoading(true);
             setMarketError("");
+            setGoldCity("");
+            setLastUpdated("");
 
             const updated = INITIAL_MARKETS.map(item => ({
                 ...item
             }));
 
             const urls = [
-                `${API}/gold/in/latest.json`,
+                `/api/gold?city=${encodeURIComponent(city)}`,
                 `${API}/silver/in/latest.json`,
                 `${API}/fx/world/latest.json`
             ];
@@ -107,28 +110,40 @@ function FinancialNews() {
                 let successfulRequests = 0;
                 const dates = [];
 
-                // GOLD
+                // CITY GOLD RATES - NEBULA
                 if (results[0].status === "fulfilled") {
                     const data = results[0].value;
 
-                    const gold24 = getObservation(data, "XAU.24K");
-                    const gold22 = getObservation(data, "XAU.22K");
-                    const gold18 = getObservation(data, "XAU.18K");
+                    if (data.success && data.prices) {
+                        updated[0].value = formatINR(
+                            data.prices.gold24k?.finalPricePerGram
+                        );
 
-                    updated[0].value = formatINR(gold24?.value);
-                    updated[1].value = formatINR(gold22?.value);
-                    updated[2].value = formatINR(gold18?.value);
+                        updated[1].value = formatINR(
+                            data.prices.gold22k?.finalPricePerGram
+                        );
 
-                    if (gold24 || gold22 || gold18) {
-                        successfulRequests++;
-                    }
+                        updated[2].value = formatINR(
+                            data.prices.gold18k?.finalPricePerGram
+                        );
 
-                    if (data.generated_at) {
-                        dates.push(data.generated_at);
+                        if (
+                            updated[0].value !== "Unavailable" &&
+                            updated[1].value !== "Unavailable" &&
+                            updated[2].value !== "Unavailable"
+                        ) {
+                            successfulRequests++;
+                        }
+
+                        setGoldCity(data.city || city);
+
+                        if (data.timestamp) {
+                            dates.push(data.timestamp);
+                        }
                     }
                 }
 
-                // SILVER
+                // SILVER - SNAPDATA
                 if (results[1].status === "fulfilled") {
                     const data = results[1].value;
                     const silver = getObservation(data, "XAG");
@@ -146,7 +161,7 @@ function FinancialNews() {
                     }
                 }
 
-                // USD / INR
+                // USD / INR - SNAPDATA
                 if (results[2].status === "fulfilled") {
                     const data = results[2].value;
                     const forex = getObservation(data, "USDINR");
@@ -205,7 +220,7 @@ function FinancialNews() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [city]);
 
     const newsCategories = [
         "Gold & Silver",
@@ -256,12 +271,6 @@ function FinancialNews() {
                 </select>
             </div>
 
-            {/* NATIONAL BENCHMARK NOTICE */}
-            <div className="fuel-message">
-                🇮🇳 Showing India National Gold & Silver Benchmark.
-                City selection does not change national benchmark rates.
-            </div>
-
             {/* MARKET OVERVIEW */}
             <section className="market-section">
 
@@ -269,7 +278,7 @@ function FinancialNews() {
                     <div>
                         <h2>Market Overview</h2>
                         <p>
-                            India-level gold, silver and currency reference rates
+                            Gold, silver and currency reference rates
                         </p>
                     </div>
                 </div>
@@ -290,6 +299,12 @@ function FinancialNews() {
                     ))}
                 </div>
 
+                {goldCity && (
+                    <p className="fuel-updated">
+                        Gold rate location returned by provider: {goldCity}
+                    </p>
+                )}
+
                 {loading && (
                     <p className="fuel-updated">
                         Fetching market information...
@@ -309,8 +324,8 @@ function FinancialNews() {
                 )}
 
                 <p className="fuel-updated">
-                    Gold and silver: IBJA national benchmark via SnapData.
-                    Currency: ECB reference data via SnapData.
+                    Gold: Nebula Metals API. Silver and currency:
+                    SnapData reference data.
                 </p>
 
             </section>
@@ -368,12 +383,14 @@ function FinancialNews() {
             </section>
 
             <p className="market-disclaimer">
-                Gold and silver values are India-level IBJA
-                benchmark rates, not city-specific jeweller prices.
-                They exclude applicable GST and making charges.
-                Data is updated periodically and is not a real-time
-                trading feed. Rates may differ at jewellery shops.
-                Market information is for general awareness only.
+                Gold rates are indicative API prices and include
+                3% GST. The provider may use national benchmark
+                pricing for some locations rather than a separate
+                city rate. Silver values are national benchmark
+                references and exclude applicable taxes.
+                Jewellery making charges, wastage and shop-level
+                differences may apply. Market information is for
+                general awareness only.
             </p>
 
         </div>
