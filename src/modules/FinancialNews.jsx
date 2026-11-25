@@ -4,19 +4,61 @@ import { getUserData, setUserData } from "../utils/storage";
 import "../styles/FinancialNews.css";
 
 const CITIES = [
-    "Vijayawada", "Guntur", "Visakhapatnam", "Tirupati",
-    "Hyderabad", "Bengaluru", "Chennai", "Mumbai",
-    "Delhi", "Kolkata", "Pune", "Kochi"
+    "Vijayawada",
+    "Guntur",
+    "Visakhapatnam",
+    "Tirupati",
+    "Hyderabad",
+    "Bengaluru",
+    "Chennai",
+    "Mumbai",
+    "Delhi",
+    "Kolkata",
+    "Pune",
+    "Kochi"
 ];
 
 const API = "https://snapdata.dev/api/v1";
 
+const NEWS_CATEGORIES = [
+    "Gold & Silver",
+    "Stock Market",
+    "Banking & RBI",
+    "Economy",
+    "Currency"
+];
+
 const INITIAL_MARKETS = [
-    { title: "24K Gold", value: "Loading...", unit: "₹ / gram · GST included", icon: "🥇" },
-    { title: "22K Gold", value: "Loading...", unit: "₹ / gram · GST included", icon: "💛" },
-    { title: "18K Gold", value: "Loading...", unit: "₹ / gram · GST included", icon: "✨" },
-    { title: "Silver", value: "Loading...", unit: "₹ / gram · National benchmark", icon: "🥈" },
-    { title: "USD / INR", value: "Loading...", unit: "ECB reference rate", icon: "💱" }
+    {
+        title: "24K Gold",
+        value: "Loading...",
+        unit: "₹ / gram · GST included",
+        icon: "🥇"
+    },
+    {
+        title: "22K Gold",
+        value: "Loading...",
+        unit: "₹ / gram · GST included",
+        icon: "💛"
+    },
+    {
+        title: "18K Gold",
+        value: "Loading...",
+        unit: "₹ / gram · GST included",
+        icon: "✨"
+    },
+    {
+        title: "Silver",
+        value: "Loading...",
+        unit: "₹ / gram · National benchmark",
+        icon: "🥈"
+    },
+    {
+        title: "USD / INR",
+        value: "Loading...",
+        unit: "ECB reference rate",
+        icon: "💱"
+    }
 ];
 
 async function getJSON(url) {
@@ -57,7 +99,9 @@ function formatDate(date) {
 
     const parsedDate = new Date(date);
 
-    if (Number.isNaN(parsedDate.getTime())) return "";
+    if (Number.isNaN(parsedDate.getTime())) {
+        return "";
+    }
 
     return parsedDate.toLocaleString("en-IN", {
         dateStyle: "medium",
@@ -77,10 +121,20 @@ function FinancialNews() {
     const [lastUpdated, setLastUpdated] = useState("");
     const [goldCity, setGoldCity] = useState("");
 
+    const [selectedCategory, setSelectedCategory] =
+        useState("Gold & Silver");
+
+    const [news, setNews] = useState([]);
+    const [newsLoading, setNewsLoading] = useState(true);
+    const [newsError, setNewsError] = useState("");
+    const [newsRefresh, setNewsRefresh] = useState(0);
+
+    // SAVE SELECTED CITY
     useEffect(() => {
         setUserData("budgetSelectedCity", city);
     }, [city]);
 
+    // LOAD GOLD, SILVER AND CURRENCY
     useEffect(() => {
         let cancelled = false;
 
@@ -100,119 +154,113 @@ function FinancialNews() {
                 `${API}/fx/world/latest.json`
             ];
 
-            try {
-                const results = await Promise.allSettled(
-                    urls.map(url => getJSON(url))
-                );
+            const results = await Promise.allSettled(
+                urls.map(url => getJSON(url))
+            );
 
-                if (cancelled) return;
+            if (cancelled) return;
 
-                let successfulRequests = 0;
-                const dates = [];
+            let successfulRequests = 0;
+            const dates = [];
 
-                // CITY GOLD RATES - NEBULA
-                if (results[0].status === "fulfilled") {
-                    const data = results[0].value;
+            // GOLD
+            if (results[0].status === "fulfilled") {
+                const data = results[0].value;
 
-                    if (data.success && data.prices) {
-                        updated[0].value = formatINR(
-                            data.prices.gold24k?.finalPricePerGram
-                        );
-
-                        updated[1].value = formatINR(
-                            data.prices.gold22k?.finalPricePerGram
-                        );
-
-                        updated[2].value = formatINR(
-                            data.prices.gold18k?.finalPricePerGram
-                        );
-
-                        if (
-                            updated[0].value !== "Unavailable" &&
-                            updated[1].value !== "Unavailable" &&
-                            updated[2].value !== "Unavailable"
-                        ) {
-                            successfulRequests++;
-                        }
-
-                        setGoldCity(data.city || city);
-
-                        if (data.timestamp) {
-                            dates.push(data.timestamp);
-                        }
-                    }
-                }
-
-                // SILVER - SNAPDATA
-                if (results[1].status === "fulfilled") {
-                    const data = results[1].value;
-                    const silver = getObservation(data, "XAG");
-
-                    updated[3].value = formatINR(
-                        silver?.value != null
-                            ? Number(silver.value) / 1000
-                            : null
+                if (data.success && data.prices) {
+                    updated[0].value = formatINR(
+                        data.prices.gold24k?.finalPricePerGram
                     );
 
-                    if (silver) successfulRequests++;
-
-                    if (data.generated_at) {
-                        dates.push(data.generated_at);
-                    }
-                }
-
-                // USD / INR - SNAPDATA
-                if (results[2].status === "fulfilled") {
-                    const data = results[2].value;
-                    const forex = getObservation(data, "USDINR");
-
-                    updated[4].value = forex?.value != null
-                        ? Number(forex.value).toFixed(4)
-                        : "Unavailable";
-
-                    if (forex) successfulRequests++;
-
-                    if (data.generated_at) {
-                        dates.push(data.generated_at);
-                    }
-                }
-
-                if (cancelled) return;
-
-                setMarkets(updated);
-
-                if (dates.length > 0) {
-                    const latestDate = dates
-                        .map(date => new Date(date))
-                        .filter(date => !Number.isNaN(date.getTime()))
-                        .sort((a, b) => b.getTime() - a.getTime())[0];
-
-                    if (latestDate) {
-                        setLastUpdated(formatDate(latestDate));
-                    }
-                }
-
-                if (successfulRequests === 0) {
-                    setMarketError(
-                        "Market data could not be loaded. Please try again later."
+                    updated[1].value = formatINR(
+                        data.prices.gold22k?.finalPricePerGram
                     );
-                } else if (successfulRequests < 3) {
-                    setMarketError(
-                        "Some market information is temporarily unavailable."
-                    );
-                }
 
-            } catch (error) {
-                if (!cancelled) {
-                    setMarketError(
-                        "Unable to connect to market data."
+                    updated[2].value = formatINR(
+                        data.prices.gold18k?.finalPricePerGram
                     );
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
+
+                    if (
+                        updated[0].value !== "Unavailable" &&
+                        updated[1].value !== "Unavailable" &&
+                        updated[2].value !== "Unavailable"
+                    ) {
+                        successfulRequests++;
+                    }
+
+                    setGoldCity(data.city || city);
+
+                    if (data.timestamp) {
+                        dates.push(data.timestamp);
+                    }
                 }
             }
+
+            // SILVER
+            if (results[1].status === "fulfilled") {
+                const data = results[1].value;
+                const silver = getObservation(data, "XAG");
+
+                updated[3].value = formatINR(
+                    silver?.value != null
+                        ? Number(silver.value) / 1000
+                        : null
+                );
+
+                if (silver) {
+                    successfulRequests++;
+                }
+
+                if (data.generated_at) {
+                    dates.push(data.generated_at);
+                }
+            }
+
+            // USD / INR
+            if (results[2].status === "fulfilled") {
+                const data = results[2].value;
+                const forex = getObservation(data, "USDINR");
+
+                updated[4].value = forex?.value != null
+                    ? Number(forex.value).toFixed(4)
+                    : "Unavailable";
+
+                if (forex) {
+                    successfulRequests++;
+                }
+
+                if (data.generated_at) {
+                    dates.push(data.generated_at);
+                }
+            }
+
+            if (cancelled) return;
+
+            setMarkets(updated);
+
+            const validDates = dates
+                .map(date => new Date(date))
+                .filter(date => !Number.isNaN(date.getTime()));
+
+            if (validDates.length > 0) {
+                validDates.sort(
+                    (a, b) => b.getTime() - a.getTime()
+                );
+
+                setLastUpdated(formatDate(validDates[0]));
+            }
+
+            if (successfulRequests === 0) {
+                setMarketError(
+                    "Market data could not be loaded. Please try again later."
+                );
+            } else if (successfulRequests < 3) {
+                setMarketError(
+                    "Some market information is temporarily unavailable."
+                );
+            }
+
+            setLoading(false);
         }
 
         loadMarkets();
@@ -222,17 +270,61 @@ function FinancialNews() {
         };
     }, [city]);
 
-    const newsCategories = [
-        "Gold & Silver",
-        "Stock Market",
-        "Banking & RBI",
-        "Economy",
-        "Currency"
-    ];
+    // LOAD FINANCIAL NEWS
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadNews() {
+            setNewsLoading(true);
+            setNewsError("");
+            setNews([]);
+
+            try {
+                const data = await getJSON(
+                    `/api/news?category=${encodeURIComponent(selectedCategory)}`
+                );
+
+                if (cancelled) return;
+
+                if (
+                    !data.success ||
+                    !Array.isArray(data.articles)
+                ) {
+                    throw new Error("Invalid news response");
+                }
+
+                setNews(data.articles);
+
+                if (data.articles.length === 0) {
+                    setNewsError(
+                        "No recent headlines found in this category."
+                    );
+                }
+
+            } catch (error) {
+                if (!cancelled) {
+                    setNewsError(
+                        "Unable to load financial news. Please try again."
+                    );
+                }
+            } finally {
+                if (!cancelled) {
+                    setNewsLoading(false);
+                }
+            }
+        }
+
+        loadNews();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedCategory, newsRefresh]);
 
     return (
         <div className="financial-news-page">
 
+            {/* PAGE HEADING */}
             <div className="market-heading">
                 <div>
                     <h1>Financial News & Market Updates</h1>
@@ -285,9 +377,13 @@ function FinancialNews() {
 
                 <div className="market-grid">
                     {markets.map(item => (
-                        <div className="market-card" key={item.title}>
+                        <div
+                            className="market-card"
+                            key={item.title}
+                        >
                             <div className="market-card-top">
                                 <span>{item.title}</span>
+
                                 <span className="market-icon">
                                     {item.icon}
                                 </span>
@@ -337,29 +433,115 @@ function FinancialNews() {
                     <div>
                         <h2>Financial News</h2>
                         <p>
-                            Financial updates and important headlines
+                            Latest financial headlines from India
                         </p>
                     </div>
                 </div>
 
+                {/* CATEGORY BUTTONS */}
                 <div className="news-categories">
-                    {newsCategories.map(category => (
-                        <button key={category} type="button">
+                    {NEWS_CATEGORIES.map(category => (
+                        <button
+                            key={category}
+                            type="button"
+                            className={
+                                selectedCategory === category
+                                    ? "active"
+                                    : ""
+                            }
+                            aria-pressed={
+                                selectedCategory === category
+                            }
+                            onClick={() =>
+                                setSelectedCategory(category)
+                            }
+                        >
                             {category}
                         </button>
                     ))}
                 </div>
 
-                <div className="news-empty-state">
-                    <div className="news-empty-icon">📰</div>
+                {/* NEWS LOADING */}
+                {newsLoading && (
+                    <div className="news-empty-state">
+                        <div className="news-empty-icon">📰</div>
 
-                    <h3>News Feed Not Connected</h3>
+                        <h3>Loading Financial News...</h3>
 
-                    <p>
-                        A verified financial news provider has not
-                        been connected yet.
-                    </p>
-                </div>
+                        <p>
+                            Fetching the latest headlines for you.
+                        </p>
+                    </div>
+                )}
+
+                {/* NEWS ERROR */}
+                {!newsLoading && newsError && (
+                    <div className="news-empty-state">
+                        <div className="news-empty-icon">📰</div>
+
+                        <h3>News Temporarily Unavailable</h3>
+
+                        <p>{newsError}</p>
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setNewsRefresh(value => value + 1)
+                            }
+                        >
+                            Try Again
+                        </button>
+                    </div>
+                )}
+
+                {/* NEWS ARTICLES */}
+                {!newsLoading &&
+                    !newsError &&
+                    news.length > 0 && (
+                        <div className="news-list">
+
+                            {news.map((article, index) => (
+                                <article
+                                    className="news-card"
+                                    key={`${article.link}-${index}`}
+                                >
+                                    <div className="news-card-content">
+
+                                        <span className="news-source">
+                                            {article.source}
+                                        </span>
+
+                                        <h3>
+                                            <a
+                                                href={article.link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {article.title}
+                                            </a>
+                                        </h3>
+
+                                        <p className="news-date">
+                                            {formatDate(
+                                                article.publishedAt
+                                            )}
+                                        </p>
+
+                                    </div>
+
+                                    <span className="news-arrow">
+                                        ↗
+                                    </span>
+                                </article>
+                            ))}
+
+                        </div>
+                    )}
+
+                <p className="fuel-updated">
+                    Headlines provided through Google News RSS.
+                    Articles belong to their respective publishers.
+                </p>
 
             </section>
 
@@ -369,6 +551,7 @@ function FinancialNews() {
                 <div className="market-section-heading">
                     <div>
                         <h2>Fuel Price Updates</h2>
+
                         <p>
                             Petrol and diesel information for {city}
                         </p>
@@ -382,6 +565,7 @@ function FinancialNews() {
 
             </section>
 
+            {/* DISCLAIMER */}
             <p className="market-disclaimer">
                 Gold rates are indicative API prices and include
                 3% GST. The provider may use national benchmark
@@ -389,8 +573,8 @@ function FinancialNews() {
                 city rate. Silver values are national benchmark
                 references and exclude applicable taxes.
                 Jewellery making charges, wastage and shop-level
-                differences may apply. Market information is for
-                general awareness only.
+                differences may apply. Financial news headlines
+                are provided for general awareness only.
             </p>
 
         </div>
