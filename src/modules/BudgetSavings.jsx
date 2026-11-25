@@ -1,13 +1,11 @@
 
 import { useEffect, useMemo, useState } from "react";
+import { getUserData, setUserData } from "../utils/storage";
 import "../styles/BudgetSavings.css";
 
+// Read data belonging to the currently logged-in user
 const readStorage = (key, fallback) => {
-    try {
-        return JSON.parse(localStorage.getItem(key)) ?? fallback;
-    } catch {
-        return fallback;
-    }
+    return getUserData(key, fallback);
 };
 
 const money = (amount) =>
@@ -152,15 +150,20 @@ const hasPositiveAllocation = (allocations = {}) => {
 };
 
 function BudgetSavings() {
+    // All three values are now loaded from the current user's storage.
     const savedPlan = readStorage("budgetMonthlyPlan", {});
     const savedGoals = readStorage("budgetSavingsGoals", []);
     const savedCategories = readStorage("budgetCategories", []);
 
     const initialCategories = [
         ...new Set(
-            savedCategories.map(getCategoryName).filter(Boolean)
+            (Array.isArray(savedCategories) ? savedCategories : [])
+                .map(getCategoryName)
+                .filter(Boolean)
         )
     ];
+
+    const safeGoals = Array.isArray(savedGoals) ? savedGoals : [];
 
     // A previously generated plan containing only zero allocations
     // should NOT be treated as a customized plan.
@@ -173,13 +176,13 @@ function BudgetSavings() {
     );
 
     const [hasGoals, setHasGoals] = useState(
-        savedPlan.hasGoals ?? savedGoals.length > 0
+        savedPlan.hasGoals ?? safeGoals.length > 0
     );
 
     const [categories, setCategories] = useState(initialCategories);
 
     const [goals, setGoals] = useState(() =>
-        savedGoals.map((goal) => ({
+        safeGoals.map((goal) => ({
             ...goal,
             monthlySaving: Number(goal.monthlySaving || 0)
         }))
@@ -272,11 +275,14 @@ function BudgetSavings() {
     // Listen for category changes from Expense Categories.
     useEffect(() => {
         const updateCategories = () => {
+            // Read categories belonging to the currently logged-in user.
             const stored = readStorage("budgetCategories", []);
 
             const names = [
                 ...new Set(
-                    stored.map(getCategoryName).filter(Boolean)
+                    (Array.isArray(stored) ? stored : [])
+                        .map(getCategoryName)
+                        .filter(Boolean)
                 )
             ];
 
@@ -323,12 +329,9 @@ function BudgetSavings() {
         categoryBudgetPool
     ]);
 
-    // Save purchase goals.
+    // Save purchase goals separately for each user.
     useEffect(() => {
-        localStorage.setItem(
-            "budgetSavingsGoals",
-            JSON.stringify(goals)
-        );
+        setUserData("budgetSavingsGoals", goals);
     }, [goals]);
 
     const categoryPercentageTotal = Number(
@@ -492,7 +495,6 @@ function BudgetSavings() {
             return;
         }
 
-        // IMPORTANT FIX:
         // If the plan has no allocations and the user has not
         // customized them, calculate recommendations now.
         const currentTotal = categories.reduce(
@@ -538,14 +540,11 @@ function BudgetSavings() {
             generatedAt: new Date().toISOString()
         };
 
-        // Update the UI and Local Storage with the calculated values.
+        // Update the UI and save the plan for this user only.
         setAllocations(finalAllocations);
         setAllocationsCustomized(true);
 
-        localStorage.setItem(
-            "budgetMonthlyPlan",
-            JSON.stringify(plan)
-        );
+        setUserData("budgetMonthlyPlan", plan);
 
         setPlanGenerated(true);
         setMessage("Your smart budget plan has been generated!");

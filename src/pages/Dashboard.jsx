@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { getUserData } from "../utils/storage";
 
 import Sidebar from "../components/Sidebar.jsx";
 import IncomeManagement from "../modules/Income.jsx";
@@ -15,14 +16,9 @@ import Profile from "../modules/Profile.jsx";
 
 import "../styles/Dashboard.css";
 
-// Safely read Local Storage
+// Read only the logged-in user's Local Storage data
 function readStorage(key, fallback) {
-    try {
-        const data = JSON.parse(localStorage.getItem(key));
-        return data ?? fallback;
-    } catch {
-        return fallback;
-    }
+    return getUserData(key, fallback);
 }
 
 // Read only array data
@@ -38,10 +34,10 @@ function Dashboard() {
     const [activePage, setActivePage] = useState("Dashboard");
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    // Used to refresh dashboard data without remounting modules
+    // Refresh dashboard data without remounting modules
     const [, setRefresh] = useState(0);
 
-    // Keep Dashboard profile details updated
+    // Read profile details for the logged-in user
     const [profileUser, setProfileUser] = useState(() =>
         readStorage("budgetPlannerCurrentUser", currentUser || {})
     );
@@ -99,7 +95,7 @@ function Dashboard() {
         };
     }, []);
 
-    // Read financial data
+    // Read financial data belonging to the logged-in user
     const incomes = getStoredArray("budgetIncomes");
     const expenses = getStoredArray("budgetExpenses");
     const savingsGoals = getStoredArray("budgetSavingsGoals");

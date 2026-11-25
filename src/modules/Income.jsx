@@ -1,19 +1,12 @@
 
 import { useState, useEffect } from "react";
+import { getUserData, setUserData } from "../utils/storage";
 import "../styles/Incomemanagement.css";
 
 function IncomeManagement() {
-    const [incomes, setIncomes] = useState(() => {
-        try {
-            const savedIncomes = JSON.parse(
-                localStorage.getItem("budgetIncomes")
-            );
-
-            return Array.isArray(savedIncomes) ? savedIncomes : [];
-        } catch {
-            return [];
-        }
-    });
+    const [incomes, setIncomes] = useState(() =>
+        getUserData("budgetIncomes", [])
+    );
 
     const [form, setForm] = useState({
         source: "",
@@ -24,10 +17,11 @@ function IncomeManagement() {
 
     const [editingId, setEditingId] = useState(null);
 
-    // Save incomes and notify Dashboard and Analytics
+    // Save income data separately for each logged-in user
     useEffect(() => {
-        localStorage.setItem("budgetIncomes", JSON.stringify(incomes));
+        setUserData("budgetIncomes", incomes);
 
+        // Notify Dashboard and Analytics
         window.dispatchEvent(new Event("budgetIncomesUpdated"));
     }, [incomes]);
 

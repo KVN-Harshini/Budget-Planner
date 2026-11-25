@@ -1,40 +1,30 @@
 
 import { useEffect, useState } from "react";
 import "../styles/Profile.css";
-
-function readStorage(key, fallback) {
-    try {
-        const value = JSON.parse(localStorage.getItem(key));
-        return value ?? fallback;
-    } catch {
-        return fallback;
-    }
-}
+import { getCurrentUser, getUsers } from "../utils/storage";
 
 function Profile() {
-    const [user, setUser] = useState(() =>
-        readStorage("budgetPlannerCurrentUser", {})
-    );
+    const [user, setUser] = useState(() => getCurrentUser() || {});
 
     const [editing, setEditing] = useState(false);
     const [message, setMessage] = useState("");
 
     const [form, setForm] = useState({
-        name: user.name || user.fullName || user.username || "",
+        name: user.name || "",
         email: user.email || ""
     });
 
     useEffect(() => {
-        const currentUser = readStorage("budgetPlannerCurrentUser", {});
+        const currentUser = getCurrentUser() || {};
+
         setUser(currentUser);
         setForm({
-            name: currentUser.name || currentUser.fullName || currentUser.username || "",
+            name: currentUser.name || "",
             email: currentUser.email || ""
         });
     }, []);
 
-    const displayName =
-        user.name || user.fullName || user.username || "User";
+    const displayName = user.name || "User";
 
     const initials = displayName
         .trim()
@@ -45,6 +35,7 @@ function Profile() {
 
     function handleChange(e) {
         const { name, value } = e.target;
+
         setForm(previous => ({
             ...previous,
             [name]: value
@@ -53,9 +44,10 @@ function Profile() {
 
     function handleEdit() {
         setForm({
-            name: user.name || user.fullName || user.username || "",
+            name: user.name || "",
             email: user.email || ""
         });
+
         setMessage("");
         setEditing(true);
     }
@@ -71,11 +63,11 @@ function Profile() {
             return;
         }
 
-        const users = readStorage("budgetPlannerUsers", []);
+        const users = getUsers();
 
         const duplicateEmail = users.some(existingUser =>
             existingUser.email?.toLowerCase() === email &&
-            existingUser.email?.toLowerCase() !== user.email?.toLowerCase()
+            existingUser.userId !== user.userId
         );
 
         if (duplicateEmail) {
@@ -83,31 +75,30 @@ function Profile() {
             return;
         }
 
+        const updatedUsers = users.map(existingUser =>
+            existingUser.userId === user.userId
+                ? {
+                    ...existingUser,
+                    name,
+                    email
+                }
+                : existingUser
+        );
+
+        localStorage.setItem(
+            "budgetPlannerUsers",
+            JSON.stringify(updatedUsers)
+        );
+
         const updatedUser = {
             ...user,
             name,
-            fullName: name,
             email
         };
 
         localStorage.setItem(
             "budgetPlannerCurrentUser",
             JSON.stringify(updatedUser)
-        );
-
-        const updatedUsers = users.map(existingUser => {
-            const isSameUser = user.id
-                ? existingUser.id === user.id
-                : existingUser.email?.toLowerCase() === user.email?.toLowerCase();
-
-            return isSameUser
-                ? { ...existingUser, name, fullName: name, email }
-                : existingUser;
-        });
-
-        localStorage.setItem(
-            "budgetPlannerUsers",
-            JSON.stringify(updatedUsers)
         );
 
         setUser(updatedUser);
@@ -119,9 +110,10 @@ function Profile() {
 
     function handleCancel() {
         setForm({
-            name: user.name || user.fullName || user.username || "",
+            name: user.name || "",
             email: user.email || ""
         });
+
         setEditing(false);
         setMessage("");
     }
@@ -136,14 +128,16 @@ function Profile() {
             </div>
 
             <div className="profile-container">
-
                 <div className="profile-card">
                     <div className="profile-avatar-large">
                         {initials || "U"}
                     </div>
 
                     <h2>{displayName}</h2>
-                    <p className="profile-email">{user.email || "No email available"}</p>
+
+                    <p className="profile-email">
+                        {user.email || "No email available"}
+                    </p>
 
                     <span className="profile-role">
                         {(user.role || "User").toString().toUpperCase()}
@@ -168,9 +162,15 @@ function Profile() {
                     </div>
 
                     {editing ? (
-                        <form onSubmit={handleSave} className="profile-form">
+                        <form
+                            onSubmit={handleSave}
+                            className="profile-form"
+                        >
                             <div className="profile-field">
-                                <label htmlFor="profile-name">Full Name</label>
+                                <label htmlFor="profile-name">
+                                    Full Name
+                                </label>
+
                                 <input
                                     id="profile-name"
                                     type="text"
@@ -183,7 +183,10 @@ function Profile() {
                             </div>
 
                             <div className="profile-field">
-                                <label htmlFor="profile-email">Email Address</label>
+                                <label htmlFor="profile-email">
+                                    Email Address
+                                </label>
+
                                 <input
                                     id="profile-email"
                                     type="email"
@@ -196,7 +199,10 @@ function Profile() {
                             </div>
 
                             <div className="profile-form-actions">
-                                <button type="submit" className="profile-save-button">
+                                <button
+                                    type="submit"
+                                    className="profile-save-button"
+                                >
                                     Save Changes
                                 </button>
 
@@ -218,7 +224,9 @@ function Profile() {
 
                             <div className="profile-info-item">
                                 <span>Email Address</span>
-                                <strong>{user.email || "Not provided"}</strong>
+                                <strong>
+                                    {user.email || "Not provided"}
+                                </strong>
                             </div>
 
                             <div className="profile-info-item">
@@ -229,7 +237,9 @@ function Profile() {
                             <div className="profile-info-item">
                                 <span>Account Status</span>
                                 <strong className="profile-active-status">
-                                    Active
+                                    {user.isActive === false
+                                        ? "Inactive"
+                                        : "Active"}
                                 </strong>
                             </div>
                         </div>

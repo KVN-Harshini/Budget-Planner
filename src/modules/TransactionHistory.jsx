@@ -1,18 +1,49 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getUserData } from "../utils/storage";
 import "../styles/TransactionHistory.css";
 
 function TransactionHistory() {
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState("All");
 
-    const incomes = JSON.parse(
-        localStorage.getItem("budgetIncomes") || "[]"
+    const [incomes, setIncomes] = useState(() =>
+        getUserData("budgetIncomes", [])
     );
 
-    const expenses = JSON.parse(
-        localStorage.getItem("budgetExpenses") || "[]"
+    const [expenses, setExpenses] = useState(() =>
+        getUserData("budgetExpenses", [])
     );
+
+    // Refresh transaction data whenever income or expenses change
+    useEffect(() => {
+        function updateTransactions() {
+            setIncomes(getUserData("budgetIncomes", []));
+            setExpenses(getUserData("budgetExpenses", []));
+        }
+
+        window.addEventListener(
+            "budgetIncomesUpdated",
+            updateTransactions
+        );
+
+        window.addEventListener(
+            "budgetExpensesUpdated",
+            updateTransactions
+        );
+
+        return () => {
+            window.removeEventListener(
+                "budgetIncomesUpdated",
+                updateTransactions
+            );
+
+            window.removeEventListener(
+                "budgetExpensesUpdated",
+                updateTransactions
+            );
+        };
+    }, []);
 
     const transactions = [
         ...incomes.map(item => ({
@@ -35,11 +66,13 @@ function TransactionHistory() {
     ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     const totalIncome = incomes.reduce(
-        (total, item) => total + Number(item.amount), 0
+        (total, item) => total + Number(item.amount || 0),
+        0
     );
 
     const totalExpenses = expenses.reduce(
-        (total, item) => total + Number(item.amount), 0
+        (total, item) => total + Number(item.amount || 0),
+        0
     );
 
     const filteredTransactions = transactions.filter(item => {

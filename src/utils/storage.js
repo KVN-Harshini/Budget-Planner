@@ -1,12 +1,19 @@
-
 const USERS_KEY = "budgetPlannerUsers";
 const CURRENT_USER_KEY = "budgetPlannerCurrentUser";
 
-// Default credentials used only when no Admin account exists
 const ADMIN_EMAIL = "admin@budgetplanner.com";
 const ADMIN_PASSWORD = "Admin@123";
 
-// Get all users and create Admin only if no Admin account exists
+// Generate a unique ID for every account
+function generateUserId() {
+    if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID();
+    }
+
+    return "user_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+}
+
+// Get all users and ensure every account has a User ID
 export function getUsers() {
     let users = [];
 
@@ -20,12 +27,28 @@ export function getUsers() {
         users = [];
     }
 
+    let changed = false;
+
+    users = users.map(user => {
+        if (user.userId) {
+            return user;
+        }
+
+        changed = true;
+
+        return {
+            ...user,
+            userId: generateUserId()
+        };
+    });
+
     const adminExists = users.some(
         user => user.role === "admin"
     );
 
     if (!adminExists) {
         users.push({
+            userId: generateUserId(),
             name: "Admin",
             email: ADMIN_EMAIL,
             password: ADMIN_PASSWORD,
@@ -33,13 +56,17 @@ export function getUsers() {
             isActive: true
         });
 
+        changed = true;
+    }
+
+    if (changed) {
         localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
 
     return users;
 }
 
-// Register a normal User
+// Register a new User
 export function registerUser(user) {
     const users = getUsers();
 
@@ -57,6 +84,7 @@ export function registerUser(user) {
     }
 
     const newUser = {
+        userId: generateUserId(),
         name: user.name.trim(),
         email,
         password: user.password,
@@ -101,6 +129,7 @@ export function loginUser(email, password) {
     }
 
     const loggedUser = {
+        userId: user.userId,
         name: user.name,
         email: user.email,
         role: user.role || "user",
@@ -116,6 +145,108 @@ export function loginUser(email, password) {
         success: true,
         user: loggedUser
     };
+}
+
+// Get currently logged-in user
+export function getCurrentUser() {
+    try {
+        const savedUser = JSON.parse(
+            localStorage.getItem(CURRENT_USER_KEY)
+        );
+
+        if (!savedUser) {
+            return null;
+        }
+
+        // Match the current session with the registered account
+        const users = getUsers();
+
+        const registeredUser = users.find(
+            user =>
+                user.email?.toLowerCase() === savedUser.email?.toLowerCase()
+        );
+
+        if (!registeredUser) {
+            return savedUser;
+        }
+
+        const currentUser = {
+            userId: registeredUser.userId,
+            name: registeredUser.name,
+            email: registeredUser.email,
+            role: registeredUser.role || "user",
+            isActive: registeredUser.isActive !== false
+        };
+
+        localStorage.setItem(
+            CURRENT_USER_KEY,
+            JSON.stringify(currentUser)
+        );
+
+        return currentUser;
+    } catch {
+        return null;
+    }
+}
+
+// Create a separate Local Storage key for each user's data
+export function getUserStorageKey(dataKey, user = getCurrentUser()) {
+    if (!user || !user.userId) {
+        return null;
+    }
+
+    return `budgetPlannerUserData_${encodeURIComponent(user.userId)}_${dataKey}`;
+}
+
+// Read data belonging only to the currently logged-in user
+export function getUserData(dataKey, defaultValue = []) {
+    const storageKey = getUserStorageKey(dataKey);
+
+    if (!storageKey) {
+        return defaultValue;
+    }
+
+    try {
+        const savedData = localStorage.getItem(storageKey);
+
+        return savedData === null
+            ? defaultValue
+            : JSON.parse(savedData);
+    } catch {
+        return defaultValue;
+    }
+}
+
+// Save data belonging only to the currently logged-in user
+export function setUserData(dataKey, value) {
+    const storageKey = getUserStorageKey(dataKey);
+
+    if (!storageKey) {
+        return false;
+    }
+
+    try {
+        localStorage.setItem(
+            storageKey,
+            JSON.stringify(value)
+        );
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Remove one user's specific data
+export function removeUserData(dataKey) {
+    const storageKey = getUserStorageKey(dataKey);
+
+    if (!storageKey) {
+        return false;
+    }
+
+    localStorage.removeItem(storageKey);
+    return true;
 }
 
 // Update Admin email and password
@@ -136,7 +267,7 @@ export function updateAdminCredentials({
 
     const admin = users.find(
         user =>
-            user.email?.toLowerCase() === currentUser.email.toLowerCase() &&
+            user.userId === currentUser.userId &&
             user.role === "admin"
     );
 
@@ -166,7 +297,7 @@ export function updateAdminCredentials({
     const duplicateEmail = users.find(
         user =>
             user.email?.toLowerCase() === email &&
-            user.email?.toLowerCase() !== admin.email.toLowerCase()
+            user.userId !== admin.userId
     );
 
     if (duplicateEmail) {
@@ -184,10 +315,7 @@ export function updateAdminCredentials({
     }
 
     const updatedUsers = users.map(user => {
-        if (
-            user.email?.toLowerCase() === admin.email.toLowerCase() &&
-            user.role === "admin"
-        ) {
+        if (user.userId === admin.userId) {
             return {
                 ...user,
                 email,
@@ -204,12 +332,11 @@ export function updateAdminCredentials({
     );
 
     const updatedAdmin = updatedUsers.find(
-        user =>
-            user.email.toLowerCase() === email &&
-            user.role === "admin"
+        user => user.userId === admin.userId
     );
 
     const loggedUser = {
+        userId: updatedAdmin.userId,
         name: updatedAdmin.name,
         email: updatedAdmin.email,
         role: "admin",
@@ -226,19 +353,6 @@ export function updateAdminCredentials({
         message: "Admin credentials updated successfully!",
         user: loggedUser
     };
-}
-
-// Get currently logged-in user
-export function getCurrentUser() {
-    try {
-        const user = JSON.parse(
-            localStorage.getItem(CURRENT_USER_KEY)
-        );
-
-        return user || null;
-    } catch {
-        return null;
-    }
 }
 
 // Logout

@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { getUserData, setUserData } from "../utils/storage";
 import "../styles/ExpenseCategories.css";
 
 const DEFAULT_CATEGORIES = [
@@ -14,40 +15,55 @@ const DEFAULT_CATEGORIES = [
 ];
 
 function ExpenseCategories() {
-    const [categories, setCategories] = useState([]);
+    const [categories, setCategories] = useState(() => {
+        const saved = getUserData("budgetCategories", null);
+
+        return Array.isArray(saved)
+            ? saved
+            : DEFAULT_CATEGORIES;
+    });
+
+    const [expenses, setExpenses] = useState(() =>
+        getUserData("budgetExpenses", [])
+    );
+
     const [categoryName, setCategoryName] = useState("");
     const [categoryIcon, setCategoryIcon] = useState("📁");
     const [editId, setEditId] = useState(null);
     const [message, setMessage] = useState("");
 
+    // Save categories separately for each user
     useEffect(() => {
-        const storedCategories = JSON.parse(
-            localStorage.getItem("budgetCategories")
+        setUserData("budgetCategories", categories);
+
+        window.dispatchEvent(
+            new Event("budgetCategoriesUpdated")
+        );
+    }, [categories]);
+
+    // Refresh expenses when Expense Management updates them
+    useEffect(() => {
+        function handleExpensesUpdate() {
+            setExpenses(
+                getUserData("budgetExpenses", [])
+            );
+        }
+
+        window.addEventListener(
+            "budgetExpensesUpdated",
+            handleExpensesUpdate
         );
 
-        if (storedCategories === null) {
-            setCategories(DEFAULT_CATEGORIES);
-            localStorage.setItem(
-                "budgetCategories",
-                JSON.stringify(DEFAULT_CATEGORIES)
+        return () => {
+            window.removeEventListener(
+                "budgetExpensesUpdated",
+                handleExpensesUpdate
             );
-        } else {
-            setCategories(storedCategories);
-        }
+        };
     }, []);
 
     function updateCategories(updatedCategories) {
         setCategories(updatedCategories);
-
-        localStorage.setItem(
-            "budgetCategories",
-            JSON.stringify(updatedCategories)
-        );
-
-        // Notify Monthly Budget Planner immediately
-        window.dispatchEvent(
-            new Event("budgetCategoriesUpdated")
-        );
     }
 
     function handleSubmit(e) {
@@ -61,7 +77,7 @@ function ExpenseCategories() {
         }
 
         const duplicate = categories.some(
-            (category) =>
+            category =>
                 category.name.toLowerCase() === trimmedName.toLowerCase() &&
                 String(category.id) !== String(editId)
         );
@@ -72,7 +88,7 @@ function ExpenseCategories() {
         }
 
         if (editId !== null) {
-            const updatedCategories = categories.map((category) =>
+            const updatedCategories = categories.map(category =>
                 String(category.id) === String(editId)
                     ? {
                         ...category,
@@ -115,7 +131,7 @@ function ExpenseCategories() {
         if (!confirmDelete) return;
 
         const updatedCategories = categories.filter(
-            (category) => String(category.id) !== String(id)
+            category => String(category.id) !== String(id)
         );
 
         updateCategories(updatedCategories);
@@ -136,18 +152,12 @@ function ExpenseCategories() {
         setMessage("");
     }
 
-    const expenses = JSON.parse(
-        localStorage.getItem("budgetExpenses") || "[]"
-    );
-
     function getCategoryTotal(categoryName) {
         return expenses
-            .filter(
-                (expense) =>
-                    expense.category === categoryName
-            )
+            .filter(expense => expense.category === categoryName)
             .reduce(
-                (total, expense) => total + Number(expense.amount || 0),
+                (total, expense) =>
+                    total + Number(expense.amount || 0),
                 0
             );
     }
@@ -170,7 +180,7 @@ function ExpenseCategories() {
                                 type="text"
                                 placeholder="Enter category name"
                                 value={categoryName}
-                                onChange={(e) =>
+                                onChange={e =>
                                     setCategoryName(e.target.value)
                                 }
                             />
@@ -180,7 +190,7 @@ function ExpenseCategories() {
                             <label>Choose Icon</label>
                             <select
                                 value={categoryIcon}
-                                onChange={(e) =>
+                                onChange={e =>
                                     setCategoryIcon(e.target.value)
                                 }
                             >
@@ -225,7 +235,7 @@ function ExpenseCategories() {
                     <p>No categories added yet.</p>
                 ) : (
                     <div className="category-list">
-                        {categories.map((category) => (
+                        {categories.map(category => (
                             <div
                                 className="category-item"
                                 key={category.id}

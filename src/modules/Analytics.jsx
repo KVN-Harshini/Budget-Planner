@@ -1,14 +1,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import "../styles/Analytics.css";
+import { getUserData } from "../utils/storage";
 
 function readStorage(key, fallback) {
-    try {
-        const data = JSON.parse(localStorage.getItem(key));
-        return data ?? fallback;
-    } catch {
-        return fallback;
-    }
+    return getUserData(key, fallback);
 }
 
 function getArray(key) {
@@ -114,7 +110,7 @@ function Analytics() {
         return Object.entries(totals)
             .map(([name, amount]) => ({ name, amount }))
             .sort((a, b) => b.amount - a.amount);
-    }, [refresh]);
+    }, [refresh, expenses]);
 
     const categoryColors = [
         "#1E9B83", "#6EE7C8", "#4B9CD3", "#A78BFA",

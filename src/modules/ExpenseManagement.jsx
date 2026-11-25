@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { getUserData, setUserData } from "../utils/storage";
 import "../styles/ExpenseManagement.css";
 
 const DEFAULT_CATEGORIES = [
@@ -14,23 +15,16 @@ const DEFAULT_CATEGORIES = [
 ];
 
 function ExpenseManagement() {
-    const [expenses, setExpenses] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem("budgetExpenses")) || [];
-        } catch {
-            return [];
-        }
-    });
+    const [expenses, setExpenses] = useState(() =>
+        getUserData("budgetExpenses", [])
+    );
 
     const [categories, setCategories] = useState(() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem("budgetCategories"));
-            return Array.isArray(saved) && saved.length > 0
-                ? saved
-                : DEFAULT_CATEGORIES;
-        } catch {
-            return DEFAULT_CATEGORIES;
-        }
+        const saved = getUserData("budgetCategories", []);
+
+        return Array.isArray(saved) && saved.length > 0
+            ? saved
+            : DEFAULT_CATEGORIES;
     });
 
     const [form, setForm] = useState({
@@ -43,22 +37,33 @@ function ExpenseManagement() {
 
     const [editingId, setEditingId] = useState(null);
 
-    // Save expenses and notify other modules
+    // Save expenses separately for each user
     useEffect(() => {
-        localStorage.setItem("budgetExpenses", JSON.stringify(expenses));
+        setUserData("budgetExpenses", expenses);
 
         window.dispatchEvent(new Event("budgetExpensesUpdated"));
     }, [expenses]);
 
+    // Save categories separately for each user
+    useEffect(() => {
+        setUserData("budgetCategories", categories);
+
+        window.dispatchEvent(new Event("budgetCategoriesUpdated"));
+    }, [categories]);
+
     function handleChange(e) {
-        setForm({
-            ...form,
+        setForm(prev => ({
+            ...prev,
             [e.target.name]: e.target.value
-        });
+        }));
     }
 
     function handleSubmit(e) {
         e.preventDefault();
+
+        if (!form.title.trim() || Number(form.amount) <= 0) {
+            return;
+        }
 
         const expense = {
             id: editingId || Date.now(),
@@ -69,7 +74,7 @@ function ExpenseManagement() {
             paymentMethod: form.paymentMethod
         };
 
-        if (editingId) {
+        if (editingId !== null) {
             setExpenses(prev =>
                 prev.map(item =>
                     item.id === editingId ? expense : item
@@ -96,7 +101,13 @@ function ExpenseManagement() {
 
     function deleteExpense(id) {
         if (window.confirm("Do you want to delete this expense?")) {
-            setExpenses(prev => prev.filter(item => item.id !== id));
+            setExpenses(prev =>
+                prev.filter(item => item.id !== id)
+            );
+
+            if (editingId === id) {
+                resetForm();
+            }
         }
     }
 
@@ -104,7 +115,7 @@ function ExpenseManagement() {
         setForm({
             title: "",
             amount: "",
-            category: categories[0]?.name || "",
+            category: categories[0]?.name || "Food",
             date: new Date().toISOString().slice(0, 10),
             paymentMethod: "Cash"
         });
@@ -113,7 +124,8 @@ function ExpenseManagement() {
     }
 
     const totalExpenses = expenses.reduce(
-        (total, item) => total + Number(item.amount), 0
+        (total, item) => total + Number(item.amount || 0),
+        0
     );
 
     return (
@@ -136,7 +148,7 @@ function ExpenseManagement() {
             </div>
 
             <div className="expense-form-card">
-                <h2>{editingId ? "Edit Expense" : "Add New Expense"}</h2>
+                <h2>{editingId !== null ? "Edit Expense" : "Add New Expense"}</h2>
 
                 <form onSubmit={handleSubmit}>
                     <div className="expense-form-grid">
@@ -214,10 +226,10 @@ function ExpenseManagement() {
 
                     <div className="expense-form-actions">
                         <button type="submit" className="expense-submit">
-                            {editingId ? "Update Expense" : "Add Expense"}
+                            {editingId !== null ? "Update Expense" : "Add Expense"}
                         </button>
 
-                        {editingId && (
+                        {editingId !== null && (
                             <button
                                 type="button"
                                 className="expense-cancel"

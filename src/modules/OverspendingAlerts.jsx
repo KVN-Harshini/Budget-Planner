@@ -1,13 +1,10 @@
+
 import { useEffect, useMemo, useState } from "react";
 import "../styles/OverspendingAlerts.css";
+import { getUserData } from "../utils/storage";
 
 const readStorage = (key, fallback) => {
-    try {
-        const value = JSON.parse(localStorage.getItem(key));
-        return value ?? fallback;
-    } catch {
-        return fallback;
-    }
+    return getUserData(key, fallback);
 };
 
 const money = (amount) =>
@@ -570,7 +567,7 @@ function OverspendingAlerts() {
                             <h3>Overspending detected!</h3>
                             <p>
                                 You have exceeded the planned budget in
-                                { " "}{data.overspentCount}{" "}
+                                {" "}{data.overspentCount}{" "}
                                 {data.overspentCount === 1
                                     ? "category"
                                     : "categories"}.
